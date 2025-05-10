@@ -2,7 +2,7 @@ return {
   LrSdkVersion = 6.0,
   LrSdkMinimumVersion = 6.0,
   LrPluginName = "AI Describe",
-  LrToolkitIdentifier = "com.example.lightroom.aidesribe",
+  LrToolkitIdentifier = "com.example.lightroom.ai.describe",
   LrPluginInfoUrl = "https://github.com/melastmohican/lrc-ai-describe",
   LrInitPlugin = "AIDescribe.lua",
   LrLibraryMenuItems = {
