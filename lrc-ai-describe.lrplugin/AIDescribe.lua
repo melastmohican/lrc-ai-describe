@@ -169,62 +169,77 @@ local function generateDescriptionForPhoto(photo, progressScope)
         logger:info("Response: " .. table.concat(response))
         if response.title then
             local title = response.title
-            photo.catalog:withWriteAccessDo("Set Title", function()
-                photo:setRawMetadata('title', title)
-            end)
+            logger:info("Setting title: " .. title)
+            local result = LrDialogs.confirm("Setting title", title, "OK", "Cancel")
+            if result == "ok" then
+                photo.catalog:withWriteAccessDo("Set Title", function()
+                    photo:setRawMetadata('title', title)
+                end)
+            end
         end
         if response.caption then
             local caption = response.caption
-            photo.catalog:withWriteAccessDo("Set Caption", function()
-                photo:setRawMetadata('caption', caption)
-            end)
+            logger:info("Setting caption: " .. caption)
+            local result = LrDialogs.confirm("Setting caption", caption, "OK", "Cancel")
+            if result == "ok" then
+                photo.catalog:withWriteAccessDo("Set Caption", function()
+                    photo:setRawMetadata('caption', caption)
+                end)
+            end
         end
         if response.keywords then
             local keywords = response.keywords
-            photo.catalog:withWriteAccessDo("Set Keywords", function()
-                for word in string.gmatch(keywords, '([^,]+)') do
-                    LrStringUtils.trimWhitespace(word)
-                    if word ~= "" then
-                        logger:info("Adding keyword: " .. word)
-                        local keyword = photo.catalog:createKeyword(word, {}, true, nil, true)
-                        if keyword then
-                            photo:addKeyword(keyword)
+            logger:info("Setting keywords: " .. keywords)
+            local result = LrDialogs.confirm("Setting keywords", keywords, "OK", "Cancel")
+            if result == "ok" then
+                photo.catalog:withWriteAccessDo("Set Keywords", function()
+                    for word in string.gmatch(keywords, '([^,]+)') do
+                        LrStringUtils.trimWhitespace(word)
+                        if word ~= "" then
+                            logger:info("Adding keyword: " .. word)
+                            local keyword = photo.catalog:createKeyword(word, {}, true, nil, true)
+                            if keyword ~= nil then
+                                photo:addKeyword(keyword)
+                            else
+                                logger:error("Failed to create keyword: " .. keyword)
+                            end
                         end
                     end
-                end
-            end)
+                end)
+            end
         end
         LrDialogs.showBezel("Description for" .. fileName .. " generated and saved.")
         return true
     end
-
+    LrDialogs.showError("Failed to generate description for " .. fileName)
+    logger:error("Failed to generate description for " .. fileName)
     return false
 end
 
 LrTasks.startAsyncTask(function()
-    LrFunctionContext.callWithContext("GenerateDescription", function(context)
-        --LrMobdebug.on() -- Make this coroutine known to ZBS
-        local catalog = LrApplication.activeCatalog()
-        local selectedPhotos = catalog:getTargetPhotos()
+        LrFunctionContext.callWithContext("GenerateDescription", function(context)
+            --LrMobdebug.on() -- Make this coroutine known to ZBS
+            local catalog = LrApplication.activeCatalog()
+            local selectedPhotos = catalog:getTargetPhotos()
 
-        if #selectedPhotos == 0 then
-            LrDialogs.message("Please select at least one photo.")
-            return
-        end
-
-        local progressScope = LrProgressScope({
-            title = "Generating Description",
-            functionContext = context,
-        })
-
-        for i, photo in ipairs(selectedPhotos) do
-            progressScope:setPortionComplete(i - 1, #selectedPhotos)
-            if not generateDescriptionForPhoto(photo, progressScope) then
-                break
+            if #selectedPhotos == 0 then
+                LrDialogs.message("Please select at least one photo.")
+                return
             end
-            progressScope:setPortionComplete(i, #selectedPhotos)
-        end
 
-        progressScope:done()
-    end)
+            local progressScope = LrProgressScope({
+                title = "Generating Description",
+                functionContext = context,
+            })
+
+            for i, photo in ipairs(selectedPhotos) do
+                progressScope:setPortionComplete(i - 1, #selectedPhotos)
+                if not generateDescriptionForPhoto(photo, progressScope) then
+                    break
+                end
+                progressScope:setPortionComplete(i, #selectedPhotos)
+            end
+
+            progressScope:done()
+        end)
 end)
