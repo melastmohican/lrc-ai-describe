@@ -31,7 +31,8 @@ local function resizePhoto(photo, progressScope)
     local resizedPhotoPath = LrPathUtils.child(tempDir, photoName)
 
     if LrFileUtils.exists(resizedPhotoPath) then
-        return nil
+        logger:trace("Resized photo already exists: " .. resizedPhotoPath)
+        return resizedPhotoPath
     end
 
     local exportSettings = {
@@ -57,10 +58,10 @@ local function resizePhoto(photo, progressScope)
     for _, rendition in exportSession:renditions() do
         local success, path = rendition:waitForRender()
         if success then
+            logger:info("Resized photo: " .. path)
             return path
         end
     end
-
     return nil
 end
 
@@ -170,44 +171,30 @@ local function generateDescriptionForPhoto(photo, progressScope)
         photo.catalog:withWriteAccessDo("Set metadata", function()
             if response.title then
                 local title = response.title
-                logger:info("Setting title: " .. title)
-                local result = LrDialogs.confirm("Setting title", title, "OK", "Cancel")
-                if result == "ok" then
-                    photo:setRawMetadata('title', title)
-                end
+                photo:setRawMetadata('title', title)
             end
             if response.caption then
                 local caption = response.caption
-                logger:info("Setting caption: " .. caption)
-                local result = LrDialogs.confirm("Setting caption", caption, "OK", "Cancel")
-                if result == "ok" then
-                    photo:setRawMetadata('caption', caption)
-                end
+                photo:setRawMetadata('caption', caption)
             end
             if response.keywords then
                 local keywords = response.keywords
-                logger:info("Setting keywords: " .. keywords)
-                local result = LrDialogs.confirm("Setting keywords", keywords, "OK", "Cancel")
-                if result == "ok" then
-                    for word in string.gmatch(keywords, '([^,]+)') do
-                        LrStringUtils.trimWhitespace(word)
-                        if word ~= "" then
-                            local keyword = photo.catalog:createKeyword(word, {}, true, nil, true)
-                            if keyword ~= nil then
-                                photo:addKeyword(keyword)
-                            else
-                                logger:error("Failed to create keyword: " .. keyword)
-                            end
+                for word in string.gmatch(keywords, '([^,]+)') do
+                    LrStringUtils.trimWhitespace(word)
+                    if word ~= "" then
+                        local keyword = photo.catalog:createKeyword(word, {}, true, nil, true)
+                        if keyword ~= nil then
+                            photo:addKeyword(keyword)
+                        else
+                            logger:error("Failed to create keyword: " .. keyword)
                         end
                     end
                 end
             end
-            LrDialogs.showBezel("Description for" .. fileName .. " generated and saved.")       
+            LrDialogs.showBezel("Description for" .. fileName .. " generated and saved.")
         end)
         return true
     end
-    --LrDialogs.showError("Failed to generate description for " .. fileName)
-    logger:error("Failed to generate description for " .. fileName)
     return false
 end
 
@@ -230,12 +217,9 @@ LrTasks.startAsyncTask(function()
         for i, photo in ipairs(selectedPhotos) do
             progressScope:setPortionComplete(i - 1, #selectedPhotos)
             logger:info("Describing " .. photo:getFormattedMetadata('fileName'))
-            if not generateDescriptionForPhoto(photo, progressScope) then
-                break
-            end
+            generateDescriptionForPhoto(photo, progressScope)
             progressScope:setPortionComplete(i, #selectedPhotos)
         end
-
         progressScope:done()
     end)
 end)
