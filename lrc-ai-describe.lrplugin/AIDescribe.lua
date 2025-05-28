@@ -79,13 +79,13 @@ local function encodePhotoToBase64(filePath, progressScope)
     return LrStringUtils.encodeBase64(data)
 end
 
-local function buildPayload(imageBase64)
+local function buildPayload(imageBase64, locInfo)
     return json.encode({
         contents = {
             {
                 role = "user",
                 parts = {
-                    { text = config.PROMPT_TEXT },
+                    { text = config.PROMPT_TEXT .. locInfo},
                     {
                         inlineData = {
                             mimeType = "image/jpeg",
@@ -110,7 +110,7 @@ local function buildPayload(imageBase64)
     })
 end
 
-local function requestDescriptionForPhoto(imageBase64, progressScope)
+local function requestDescriptionForPhoto(imageBase64, locInfo, progressScope)
     local apiKey = prefs.geminiApiKey
     progressScope:setCaption("Generating description...")
 
@@ -121,7 +121,7 @@ local function requestDescriptionForPhoto(imageBase64, progressScope)
         { field = "Content-Type", value = "application/json" },
     }
 
-    local payload = buildPayload(imageBase64)
+    local payload = buildPayload(imageBase64, locInfo)
     local response, _ = LrHttp.post(url, payload, headers)
 
     local ok, decoded = pcall(json.decode, response)
@@ -152,6 +152,11 @@ end
 
 local function generateDescriptionForPhoto(photo, progressScope)
     local fileName = photo:getFormattedMetadata('fileName')
+    local gps = photo:getRawMetadata("gps")
+    local locInfo = ""
+    if gps ~= nil then
+            locInfo = "\nThis photo was taken at the following coordinates:" .. gps.latitude .. ", " .. gps.longitude
+        end
     local resizedFilePath = resizePhoto(photo, progressScope)
     if not resizedFilePath then
         return false
@@ -164,7 +169,7 @@ local function generateDescriptionForPhoto(photo, progressScope)
 
     LrFileUtils.delete(resizedFilePath)
 
-    local response = requestDescriptionForPhoto(base64Image, progressScope)
+    local response = requestDescriptionForPhoto(base64Image, locInfo, progressScope)
 
     if response then
         logger:info("Response: " .. json.encode(response, { indent = true }))
