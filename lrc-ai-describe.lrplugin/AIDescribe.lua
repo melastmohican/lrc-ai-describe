@@ -176,14 +176,17 @@ local function generateDescriptionForPhoto(photo, progressScope)
         photo.catalog:withWriteAccessDo("Set metadata", function()
             if response.title then
                 local title = response.title
+                logger:info("Title " .. title)
                 photo:setRawMetadata('title', title)
             end
             if response.caption then
                 local caption = response.caption
+                logger:info("Caption " .. caption)
                 photo:setRawMetadata('caption', caption)
             end
             if response.keywords then
                 local keywords = response.keywords
+                logger:info("Keywords " .. keywords)
                 for word in string.gmatch(keywords, '([^,]+)') do
                     LrStringUtils.trimWhitespace(word)
                     if word ~= "" then
@@ -196,8 +199,11 @@ local function generateDescriptionForPhoto(photo, progressScope)
                     end
                 end
             end
-            LrDialogs.showBezel("Description for" .. fileName .. " generated and saved.")
-        end)
+            -- Save the photo to ensure metadata is written
+            logger:info("Save the photo to ensure metadata is written")
+            photo:saveMetadata()
+            LrDialogs.showBezel("Description for " .. fileName .. " generated and saved.")
+        end, { timeout = 30 })
         return true
     end
     return false
