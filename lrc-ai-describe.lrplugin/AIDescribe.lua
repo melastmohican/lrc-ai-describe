@@ -123,6 +123,7 @@ local function requestDescriptionForPhoto(imageBase64, locInfo, progressScope)
 
     local payload = buildPayload(imageBase64, locInfo)
     local response, _ = LrHttp.post(url, payload, headers)
+    --logger:info("Gemini response: " .. tostring(response))
 
     local ok, decoded = pcall(json.decode, response)
     if not ok then
